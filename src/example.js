@@ -1,30 +1,38 @@
 import { PairingHeap, EventHandler, AsyncStream, Scheduler } from "./index.js";
+import { ItemRegistry } from "./structures/ItemRegistry.js";
 
 const queue = new (PairingHeap.with(EventHandler, AsyncStream, Scheduler))()
 
 
 // queue.insert(id, priority, item)
-queue.insert('channel id 1', Date.now() + 3_000, 'something')
-queue.insert('channel id 2', Date.now() + 4_000, 'something')
-queue.insert('channel id 3', Date.now() + 5_000, 'something')
-queue.start(); 
+const handle1 = queue.insert(Date.now() + 3_000, 'something', 'channel id 1')
+console.log(handle1)
+const handle2 = queue.insert(Date.now() + 4_000, 'something')
+handle1.item.priority = 1;
+console.log(queue.get(handle2))
+console.log('handle2 instanceof ItemRegistry.Handle:', handle2 instanceof ItemRegistry.Handle)
+const handle3 = queue.insert(Date.now() + 5_000, 'something', 'channel id 3')
+console.log(queue.size)
+queue.remove('channel id 3')
+console.log(queue.size)
+// queue.start(); 
 
 
 const main = async () => {
     // queue.on('all', console.debug)
 
-    queue.on('poll', (item) => {
-        console.log('[!] item is ready')
-    })
+    // queue.on('poll', (item) => {
+    //     console.log('[!] item is ready')
+    // })
 
-    // Consumer 1: Using for-await
-    async function consumer1() {
-        for await (const item of queue) {
-            console.log('Consumer 1:', item);
-            console.log('Consumer 1: waiting for 3 seconds')
-            await new Promise(resolve => setTimeout(resolve, 3_000));
-        }
-    }
+    // // Consumer 1: Using for-await
+    // async function consumer1() {
+    //     for await (const item of queue) {
+    //         console.log('Consumer 1:', item);
+    //         console.log('Consumer 1: waiting for 3 seconds')
+    //         await new Promise(resolve => setTimeout(resolve, 3_000));
+    //     }
+    // }
 
     // Consumer 2: Using for await
     // async function consumer2() {
@@ -35,7 +43,7 @@ const main = async () => {
 
     // why does the task queue actually distribute the items
 
-    consumer1();
+    // consumer1();
     // consumer2();
 
     //  item_1_expires: 2:30, 
