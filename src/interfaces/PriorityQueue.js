@@ -78,7 +78,7 @@ export class PriorityQueue extends Collection {
      * @throws {Error} Throws an error if the ID is not found.
      * @throws {Error} Must be implemented by subclasses.
      */
-    update(ref, options) {
+    setPriority(ref, options) {
          throw new Error('Method update(id, options) must be implemented by subclasses.');
     }
 
