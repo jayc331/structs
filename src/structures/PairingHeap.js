@@ -224,37 +224,31 @@ export class PairingHeap extends PriorityQueue {
      * @returns {boolean} Returns true if the priority was successfully decreased.
      * @throws {Error} Throws an error if the ID is not found or if the new priority is not lower than the current priority.
      */
-    decreaseKey(ref, newPriority) {
-        // Find the node using the lookup map.
-        const node = this.#nodeRegistry.resolveItem(ref);
+    #decreaseKey(node, newPriority) {
+        // The node is guaranteed to exist by the calling setPriority method.
 
-        // Throw an error if the node is not found.
-        if (!node) {
-            throw new Error(`DecreaseKey failed: Item with reference "${ref}" not found.`);
-        }
-
-        // Store the old priority for comparison and potential event emission later.
-        const oldPriority = node.priority; // Accessing public priority property of PairingHeap.Node
+        const oldPriority = node.priority;
 
         // Throw an error if the new priority is not strictly lower than the current one.
         if (newPriority >= oldPriority) {
-            throw new Error(`DecreaseKey failed: New priority ${newPriority} is not lower than current priority ${oldPriority} for item reference "${ref}".`);
+            // Error message can be simplified as 'node' is already known to exist
+            throw new Error(`DecreaseKey failed: New priority ${newPriority} is not lower than current priority ${oldPriority}.`);
         }
 
         // Update the node's priority.
-        node.priority = newPriority; // Setting public priority property of PairingHeap.Node
+        node.priority = newPriority;
 
         // If the updated node is not the root, it might now have a higher priority (lower value)
         // than its parent. To maintain the heap property, we cut it from its current position
         // and link it with the root.
-        if (node !== this.#root) { // Comparing with private #root
-            this.#cut(node); // Calling private #cut
-            this.#root = this.#link(this.#root, node); // Calling private #link and accessing private #root
+        if (node !== this.#root) {
+            this.#cut(node);
+            this.#root = this.#link(this.#root, node);
         }
         // If the node was already the root, decreasing its priority doesn't violate the heap property,
         // as it remains the minimum element. No structural changes are needed.
 
-        return true; // Indicate successful decrease.
+        return true;
     }
 
     /**
@@ -265,21 +259,15 @@ export class PairingHeap extends PriorityQueue {
      * @returns {boolean} Returns true if the priority was successfully increased.
      * @throws {Error} Throws an error if the ID is not found or if the new priority is not greater than the current priority.
      */
-    increaseKey(ref, newPriority) {
-        const node = this.#nodeRegistry.resolveItem(ref);
-
-        if (!node) {
-            throw new Error(`IncreaseKey failed: Item with reference "${ref}" not found.`);
-        }
-
+    #increaseKey(node, newPriority) {
         const oldPriority = node.priority;
 
         if (newPriority <= oldPriority) {
-            throw new Error(`IncreaseKey failed: New priority ${newPriority} is not greater than current priority ${oldPriority} for item reference "${ref}".`);
+            throw new Error(`IncreaseKey failed: New priority ${newPriority} is not greater than current priority ${oldPriority}.`);
         }
 
         // To increase a key, we remove the node and re-insert it with the new priority.
-        const { id, item } = this.remove(ref);
+        const { id, item } = this.remove(node);
         this.insert(newPriority, item, id);
 
         return true;
@@ -290,64 +278,39 @@ export class PairingHeap extends PriorityQueue {
      * It automatically determines whether to perform a decreaseKey or increaseKey operation
      * based on the comparison of the new priority with the current priority.
      * @param {string | number | ItemRegistry.Handle<PairingHeap.Node> | PairingHeap.Node} ref - The reference to the item to update.
-     * @param {{ priority?: number, item?: any }} options - Object with update options.
+     * @param {{ priority?: number, item?: any }} priority - Object with update options.
      * @returns {{ before: {id: string|number, priority: number, item: any}, after: {id: string|number, priority: number, item: any}} | false} 
      * Returns an object containing the node's state before and after the update if the update was successful.
      * Returns false if the new priority is the same as the old one (no change made).
      * @throws {Error} Throws an error if the ID is not found.
      */
-    update(ref, options) {
-        // Find the node to get its current priority.
+    setPriority(ref, newPriority) {
+        // 1. Resolve the node and handle "not found" error centrally
         const node = this.#nodeRegistry.resolveItem(ref);
 
         if (!node) {
             throw new Error(`Update failed: Item with reference "${ref}" not found.`);
         }
 
-        // Destructure options with defaults
-        const { priority: newPriority, item: newItem } = options || {};
-
-        // Capture the before state
+        // 2. Capture the 'before' state *before* any modifications
         const beforeState = node.toJSON();
-        
-        // If no priority change and no new item, no action is needed.
-        if (newPriority === undefined && newItem === undefined) {
-            return false; // Indicate no change occurred.
-        }
+        const oldPriority = node.priority;
 
-        // If priority is the same and only updating item, just update the item
-        if (newPriority === undefined || newPriority === beforeState.priority) {
-            // Update the item if provided
-            if (newItem !== undefined) {
-                node.item = newItem;
-                return {
-                    before: beforeState,
-                    after: node.toJSON()
-                };
-            }
-            return false; // No change if priority is same and no new item
-        }
-
-        // Update the item if a new one is provided
-        if (newItem !== undefined) {
-            node.item = newItem;
-        }
-
-        // Determine whether the priority is decreasing or increasing.
-        if (newPriority < beforeState.priority) {
-            // If decreasing, call the decreaseKey method.
-            this.decreaseKey(ref, newPriority);
-        } else if (newPriority > beforeState.priority) { 
+        // 3. Determine action based on priority comparison
+        if (newPriority < oldPriority) {
+            // If decreasing, call the decreaseKey method with the resolved node
+            this.#decreaseKey(node, newPriority);
+        } else if (newPriority > oldPriority) {
             // If increasing, call the increaseKey method.
-            this.increaseKey(ref, newPriority);
+            this.#increaseKey(node, newPriority);
+        } else {
+            // If new priority is the same as old, no change needed.
+            return false;
         }
 
-        // Get the updated node after the operation
-        const updatedNode = this.#nodeRegistry.resolveItem(ref);
-        
-        // Capture the after state
-        const afterState = updatedNode.toJSON();
-        
+        // 4. Get the updated node after the operation (it's the same node object)
+        const afterState = node.toJSON(); // The node object itself has been updated
+
         // Return an object with the before and after states
         return {
             before: beforeState,
@@ -370,10 +333,6 @@ export class PairingHeap extends PriorityQueue {
         if (!node) {
             return null; // Item not found
         }
-
-        // Prepare the result before modifying the node or map
-        // Accessing public properties of the PairingHeap.Node instance
-        const result = { id: this.#nodeRegistry.resolveId(node), priority: node.priority, item: node.item };
 
         // Remove from the lookup map
         this.#nodeRegistry.unregister(node);
@@ -410,7 +369,7 @@ export class PairingHeap extends PriorityQueue {
         node.sibling = null;
         node.prev = null;
 
-        return result;
+        return node;
     }
 
     /**
