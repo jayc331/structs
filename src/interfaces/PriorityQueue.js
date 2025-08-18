@@ -7,14 +7,40 @@ import { Collection } from './Collection.js';
  */
 export class PriorityQueue extends Collection {
     /**
+     * The comparator function used to determine the order of elements in the priority queue.
+     * It takes two arguments (a, b) and should return:
+     * - A negative number if a has higher priority than b (a comes before b).
+     * - A positive number if b has higher priority than a (b comes before a).
+     * - Zero if a and b have the same priority.
+     * @type {function(any, any): number}
+     * @private
+     */
+    #comparator;
+
+    /**
      * Constructs a new PriorityQueue.
      * Subclasses should call super() in their constructors.
+     * @param {object} [options] - An options object.
+     * @param {function(any, any): number} [options.comparator] - Optional comparator function.
+     *   If not provided, a default min-heap comparator (a - b) is used.
      */
-    // constructor() {
-    //     // This is an abstract base class, so direct instantiation is not intended.
-    //     // You might add a check here to prevent direct instantiation if desired,
-    //     // but relying on subclasses to implement methods is common.
-    // }
+    constructor(options = {}) {
+        super();
+
+        // Extract comparator from options object
+        const { comparator } = options;
+
+        // Default comparator for a min-heap (lower priority value means higher priority)
+        this.#comparator = comparator || ((a, b) => a - b);
+    }
+
+    /**
+     * Returns the comparator function used by this priority queue.
+     * @returns {function(any, any): number}
+     */
+    get comparator() {
+        return this.#comparator;
+    }
 
     /**
      * Returns the item with the highest priority (minimum priority value) without removing it.
