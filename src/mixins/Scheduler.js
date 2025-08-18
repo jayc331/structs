@@ -48,7 +48,7 @@ export const Scheduler = (BaseClass) => class Scheduler extends BaseClass {
     #setTimer() {
         if (!this.#timer && this.#running && !this.empty) {
             const next = this.peek();
-            const delay = next.priority - this.#now();
+            const delay = next.item.priority - this.#now();
             this.#timer = this.#setTimeout(() => this.#processReadyItems(), delay);
         }
         return this;
@@ -64,7 +64,7 @@ export const Scheduler = (BaseClass) => class Scheduler extends BaseClass {
         this.#clearTimer();
         if (this.#running) {
             const now = this.#now();
-            while (!this.empty && this.peek().priority <= now) {
+            while (!this.empty && this.peek().item.priority <= now) {
                 super.poll();
             }
             this.#setTimer();
