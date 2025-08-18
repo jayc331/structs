@@ -77,8 +77,8 @@ export class PriorityQueue extends Collection {
      * @throws {Error} Throws an error if an item with the same ID already exists or on other insertion failures.
      * @throws {Error} Must be implemented by subclasses.
      */
-    insert(id, priority, item) {
-        throw new Error('Method insert(id, priority, item) must be implemented by subclasses.');
+    insert(priority, item, id) {
+        throw new Error('Method insert(priority, item, id) must be implemented by subclasses.');
     }
 
     /**
