@@ -81,9 +81,12 @@ export class PairingHeap extends PriorityQueue {
 
     /**
      * Constructs an empty PairingHeap.
+     * @param {object} [options] - An options object.
+     * @param {function(any, any): number} [options.comparator] - Optional comparator function.
+     *   If not provided, the default min-heap comparator from PriorityQueue is used.
      */
-    constructor() {
-        super(); // Initialize the base PriorityQueue.
+    constructor(options = {}) {
+        super(options); // Pass the options object to the base PriorityQueue constructor.
         this.#root = null;
         // A registry to store nodes, keyed by their unique ID, for quick access.
         this.#nodeRegistry = new ItemRegistry();
@@ -185,13 +188,12 @@ export class PairingHeap extends PriorityQueue {
             return null;
         }
 
-        // The minimum element is always at the root. Store it before removal.
         const minNode = this.#root; // Accessing private #root
-        // Prepare the result object containing the data of the node to be removed.
-        // Accessing public properties of the PairingHeap.Node instance
-        const result = { id: this.#nodeRegistry.resolveId(minNode), priority: minNode.priority, item: minNode.item };
 
-        // Remove the node's ID from the lookup map.
+        // Create the handle BEFORE unregistering the node.
+        const handle = this.#nodeRegistry.resolveHandle(minNode);
+
+        // Now, unregister the node.
         this.#nodeRegistry.unregister(minNode);
 
         // If the root has no children, removing the root makes the heap empty.
@@ -213,26 +215,25 @@ export class PairingHeap extends PriorityQueue {
         minNode.sibling = null;
         minNode.prev = null;
 
-        return result;
+        // Return the handle, which is consistent with insert().
+        return handle;
     }
 
     /**
-     * Decreases the priority of an existing item identified by its unique ID.
+     * Decreases the priority of an existing item.
      * This operation is efficient in Pairing Heaps (O(1) amortized).
-     * @param {string | number | ItemRegistry.Handle<PairingHeap.Node> | PairingHeap.Node} ref - The reference to the item whose priority should be decreased.
-     * @param {number} newPriority - The new priority value. Must be strictly lower than the current priority.
+     * @param {PairingHeap.Node} node - The node whose priority should be decreased.
+     * @param {number} newPriority - The new priority value. Must be strictly higher priority than the current priority (as determined by the comparator).
      * @returns {boolean} Returns true if the priority was successfully decreased.
-     * @throws {Error} Throws an error if the ID is not found or if the new priority is not lower than the current priority.
+     * @throws {Error} Throws an error if the new priority is not strictly higher priority than the current priority.
      */
     #decreaseKey(node, newPriority) {
         // The node is guaranteed to exist by the calling setPriority method.
 
-        const oldPriority = node.priority;
-
-        // Throw an error if the new priority is not strictly lower than the current one.
-        if (newPriority >= oldPriority) {
-            // Error message can be simplified as 'node' is already known to exist
-            throw new Error(`DecreaseKey failed: New priority ${newPriority} is not lower than current priority ${oldPriority}.`);
+        // Use the comparator to check if newPriority is strictly "less" (higher priority) than oldPriority.
+        // this.comparator(a, b) returns < 0 if a has higher priority than b.
+        if (this.comparator(newPriority, oldPriority) >= 0) { // If newPriority is not strictly higher priority
+            throw new Error(`DecreaseKey failed: New priority ${newPriority} is not higher priority than current priority ${oldPriority}.`);
         }
 
         // Update the node's priority.
@@ -252,18 +253,18 @@ export class PairingHeap extends PriorityQueue {
     }
 
     /**
-     * Increases the priority of an existing item identified by its unique ID.
+     * Increases the priority of an existing item.
      * This operation is less efficient than decreaseKey, typically involving a remove and insert.
-     * @param {string | number | ItemRegistry.Handle<PairingHeap.Node> | PairingHeap.Node} ref - The reference to the item whose priority should be increased.
-     * @param {number} newPriority - The new priority value. Must be strictly greater than the current priority.
+     * @param {PairingHeap.Node} node - The node whose priority should be increased.
+     * @param {number} newPriority - The new priority value. Must be strictly lower priority than the current priority (as determined by the comparator).
      * @returns {boolean} Returns true if the priority was successfully increased.
-     * @throws {Error} Throws an error if the ID is not found or if the new priority is not greater than the current priority.
+     * @throws {Error} Throws an error if the new priority is not strictly lower priority than the current priority.
      */
     #increaseKey(node, newPriority) {
-        const oldPriority = node.priority;
-
-        if (newPriority <= oldPriority) {
-            throw new Error(`IncreaseKey failed: New priority ${newPriority} is not greater than current priority ${oldPriority}.`);
+        // Use the comparator to check if newPriority is strictly "greater" (lower priority) than oldPriority.
+        // this.comparator(a, b) returns > 0 if a has lower priority than b.
+        if (this.comparator(newPriority, oldPriority) <= 0) { // If newPriority is not strictly lower priority
+            throw new Error(`IncreaseKey failed: New priority ${newPriority} is not lower priority than current priority ${oldPriority}.`);
         }
 
         // To increase a key, we remove the node and re-insert it with the new priority.
@@ -274,12 +275,12 @@ export class PairingHeap extends PriorityQueue {
     }
 
     /**
-     * Updates the priority and optionally the item data of an existing item.
+     * Updates the priority of an existing item.
      * It automatically determines whether to perform a decreaseKey or increaseKey operation
      * based on the comparison of the new priority with the current priority.
      * @param {string | number | ItemRegistry.Handle<PairingHeap.Node> | PairingHeap.Node} ref - The reference to the item to update.
-     * @param {{ priority?: number, item?: any }} priority - Object with update options.
-     * @returns {{ before: {id: string|number, priority: number, item: any}, after: {id: string|number, priority: number, item: any}} | false} 
+     * @param {number} newPriority - The new priority value.
+     * @returns {{ before: {id: string|number, priority: number, item: any}, after: {id: string|number, priority: number, item: any}} | false}
      * Returns an object containing the node's state before and after the update if the update was successful.
      * Returns false if the new priority is the same as the old one (no change made).
      * @throws {Error} Throws an error if the ID is not found.
@@ -387,8 +388,8 @@ export class PairingHeap extends PriorityQueue {
     // --- Internal Pairing Heap Helper Methods ---
 
     /**
-     * Links two heap roots (subtrees) into a single tree, preserving the min-heap property.
-     * The root with the higher priority becomes the first child of the root with the lower priority.
+     * Links two heap roots (subtrees) into a single tree, preserving the heap property.
+     * The root with the higher priority (as determined by the comparator) becomes the first child of the root with the lower priority.
      * @private
      * @param {PairingHeap.Node | null} node1 - The root of the first heap.
      * @param {PairingHeap.Node | null} node2 - The root of the second heap.
@@ -400,9 +401,9 @@ export class PairingHeap extends PriorityQueue {
         if (!node2) return node1;
 
         // Determine which node has the lower priority (this will be the new root).
-        // Accessing public priority property of PairingHeap.Node instances
-        if (node1.priority > node2.priority) {
-            [node1, node2] = [node2, node1]; // Array destructuring for swapping.
+        // this.comparator(a, b) returns < 0 if a has higher priority than b.
+        if (this.comparator(node1.priority, node2.priority) > 0) { // If node1's priority is "greater" (lower priority) than node2's
+            [node1, node2] = [node2, node1]; // Swap them so node1 is always the higher priority (lower value) root
         }
 
         // Now, node1 is the root with the lower priority. Link node2 as node1's new first child.
