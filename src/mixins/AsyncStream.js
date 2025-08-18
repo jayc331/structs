@@ -59,5 +59,11 @@ export const AsyncStream = (BaseClass) => class AsyncStream extends BaseClass {
 
         return result;
     }
+
+    drain() {
+        const drainedItems = [...this.#readyBuffer];
+        this.#readyBuffer.length = 0;
+        return drainedItems;
+    }
     
 }
