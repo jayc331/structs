@@ -70,10 +70,10 @@ async function main() {
 
     // Schedule some tasks. The scheduler will poll them based on their priority (timestamp).
     const now = Date.now();
-    queue.insert(now + 3000, 'Send welcome email', 'task-3');
-    queue.insert(now + 1000, 'Process payment', 'task-1');
-    queue.insert(now + 2000, 'Update user profile', 'task-2');
-    queue.insert(now + 4000, 'Generate analytics report', 'task-4');
+    queue.insert('Send welcome email', now + 3000, 'task-3');
+    queue.insert('Process payment', now + 1000, 'task-1');
+    queue.insert('Update user profile', now + 2000, 'task-2');
+    queue.insert('Generate analytics report', now + 4000, 'task-4');
 
     // Start the scheduler. It will begin polling items when their time is due.
     queue.start();

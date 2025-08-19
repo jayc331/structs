@@ -70,14 +70,14 @@ export class PriorityQueue extends Collection {
     /**
      * Inserts a new item with its priority and unique ID into the priority queue.
      * @abstract
-     * @param {number} priority - The priority value.
      * @param {any} item - The arbitrary data associated with the item.
+     * @param {number} priority - The priority value.
      * @param {string | number} [id] - Optional unique ID for the item.
      * @returns {ItemRegistry.Handle} A handle to the newly inserted item.
      * @throws {Error} Throws an error if an item with the same ID already exists or on other insertion failures.
      * @throws {Error} Must be implemented by subclasses.
      */
-    insert(priority, item, id) {
+    insert(item, priority, id) {
         throw new Error('Method insert(priority, item, id) must be implemented by subclasses.');
     }
 

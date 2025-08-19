@@ -146,13 +146,13 @@ export class PairingHeap extends PriorityQueue {
 
     /**
      * Inserts a new item with its priority and unique ID into the heap.
-     * @param {string | number} id - The unique ID of the item.
-     * @param {number} priority - The priority value (e.g., timestamp).
      * @param {any} item - The arbitrary data associated with the item.
+     * @param {number} priority - The priority value (e.g., timestamp).
+     * @param {string | number} id - The unique ID of the item.
      * @returns {boolean} Returns true if the insertion was successful.
      * @throws {Error} Throws an error if an item with the same ID already exists in the heap.
      */
-    insert(priority, item, id) {
+    insert(item, priority, id) {
         // Check for duplicate IDs before creating the node or modifying the heap.
         if (this.#nodeRegistry.has(id)) {
             throw new Error(`Insert failed: Item with ID "${id}" already exists.`);
@@ -269,7 +269,7 @@ export class PairingHeap extends PriorityQueue {
 
         // To increase a key, we remove the node and re-insert it with the new priority.
         const { id, item } = this.remove(node);
-        this.insert(newPriority, item, id);
+        this.insert(item, newPriority, id);
 
         return true;
     }
